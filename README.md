@@ -68,11 +68,6 @@ The app comes with a default API key that allows **5 free conversions**. For unl
 - **Dark Mode**: Toggle between light and dark themes
 - **Language**: Switch between English and Arabic
 
-### Keyboard Shortcuts
-- `Tab` - Navigate between fields
-- `Enter` - Submit forms
-- `Escape` - Close modals
-
 ## 🏗️ Project Structure
 
 ```
