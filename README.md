@@ -28,8 +28,7 @@ A modern, responsive web application for real-time currency conversion with adva
 
 ## 🚀 Quick Start
 
-### Option 1: Direct File Access
-Simply open `index.html` in your web browser to start using the application.
+Simply open [Currency Convertor](https://moaz615.github.io/Currency-Convertor/) in your web browser to start using the application.
 
 ## 📋 Prerequisites
 
