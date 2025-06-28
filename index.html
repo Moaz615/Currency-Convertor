@@ -1,0 +1,1766 @@
+<!DOCTYPE html>
+<html lang="en" dir="ltr">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title data-lang-key="appTitle">Currency Converter</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="icon" type="image/svg+xml"
+        href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Cpath fill='%234299e1' d='M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z'/%3E%3C/svg%3E">
+    <!-- Chart.js CDN for charts -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <!-- PWA Manifest Link (Commented out as service worker caused issues in this environment) -->
+    <!-- <link rel="manifest" href="manifest.json"> -->
+    <meta name="theme-color" content="#4299e1"> <!-- Theme color for PWA -->
+
+    <style>
+        /* Global Styles */
+        body {
+            font-family: 'Inter', sans-serif;
+            background: linear-gradient(135deg, #f0f2f5 0%, #e2e8f0 100%);
+            /* Subtle gradient background */
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+            box-sizing: border-box;
+            margin: 0;
+            color: #334155;
+            transition: background-color 0.3s ease, color 0.3s ease;
+            overflow-x: hidden;
+            /* Prevent horizontal scrollbar from shake animation */
+        }
+
+        /* Dark Mode Styles */
+        body.dark-mode {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: #ecf0f1;
+        }
+
+        body.dark-mode .container {
+            background-color: #2b3b4a;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.3);
+            border: 1px solid #3d5167;
+        }
+
+        body.dark-mode h1 {
+            color: #e0f2f7;
+        }
+
+        body.dark-mode label {
+            color: #bdc3c7;
+        }
+
+        body.dark-mode input[type="number"],
+        body.dark-mode input[type="text"],
+        /* Dark mode for search inputs */
+        body.dark-mode select,
+        body.dark-mode input[type="date"] {
+            /* Dark mode for date input */
+            background-color: #3d5167;
+            border-color: #566c82;
+            color: #ecf0f1;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.2);
+        }
+
+        body.dark-mode input[type="number"]:focus,
+        body.dark-mode input[type="text"]:focus,
+        body.dark-mode select:focus,
+        body.dark-mode input[type="date"]:focus {
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 4px rgba(99, 179, 237, 0.3);
+        }
+
+        body.dark-mode .result-display {
+            background-color: #264a66;
+            border-color: #3c6e8f;
+            color: #a7d9f8;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        body.dark-mode .message {
+            background-color: #34495e;
+            color: #bdc3c7;
+        }
+
+        body.dark-mode .message.error {
+            background-color: #8c2626;
+            color: #fbdada;
+        }
+
+        body.dark-mode .message.loading {
+            background-color: #2f5f8d;
+            color: #a7d9f8;
+        }
+
+        body.dark-mode .lang-toggle-button,
+        body.dark-mode .dark-mode-toggle,
+        body.dark-mode .swap-button,
+        body.dark-mode .retry-button,
+        /* Dark mode for retry button */
+        body.dark-mode .feedback-button {
+            /* Dark mode for feedback button */
+            background-color: #5fa5e6;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+        }
+
+        body.dark-mode .lang-toggle-button:hover,
+        body.dark-mode .dark-mode-toggle:hover,
+        body.dark-mode .swap-button:hover,
+        body.dark-mode .retry-button:hover,
+        body.dark-mode .feedback-button:hover {
+            background-color: #4b89ce;
+        }
+
+        body.dark-mode .copy-button {
+            background-color: #5fa5e6;
+            color: #ffffff;
+        }
+
+        body.dark-mode .copy-button:hover {
+            background-color: #4b89ce;
+        }
+
+        body.dark-mode .loading-spinner {
+            border-top: 4px solid #63b3ed;
+        }
+
+        body.dark-mode #rateChart {
+            /* Dark mode for chart background */
+            background-color: #3d5167;
+        }
+
+        /* Container for the app */
+        .container {
+            background-color: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.15);
+            padding: 40px;
+            width: 100%;
+            max-width: 600px;
+            /* Increased max width to accommodate chart better */
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+            border: 1px solid #e0e6ed;
+            position: relative;
+        }
+
+        /* Top Bar for toggles */
+        .top-bar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        html[dir="ltr"] .top-bar {
+            left: auto;
+            right: 20px;
+        }
+
+        html[dir="rtl"] .top-bar {
+            right: auto;
+            /* Reset for RTL */
+            left: 20px;
+            /* Align to left for RTL */
+        }
+
+
+        /* Toggle Buttons (Language & Dark Mode & Feedback) */
+        .lang-toggle-button,
+        .dark-mode-toggle,
+        .feedback-button {
+            background-color: #4299e1;
+            color: #ffffff;
+            border: none;
+            border-radius: 20px;
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            display: flex;
+            /* For icon alignment */
+            align-items: center;
+            gap: 5px;
+        }
+
+        .lang-toggle-button:hover,
+        .dark-mode-toggle:hover,
+        .feedback-button:hover {
+            background-color: #3182ce;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .dark-mode-toggle svg {
+            width: 18px;
+            height: 18px;
+        }
+
+        .feedback-button svg {
+            width: 18px;
+            height: 18px;
+        }
+
+
+        /* Heading Style */
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            text-align: center;
+            color: #2c3e50;
+            margin-bottom: 15px;
+            margin-top: 30px;
+            /* Space for top bar */
+        }
+
+        /* Input and Select Field Styles */
+        .input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        label {
+            font-weight: 500;
+            color: #5d6d7e;
+            font-size: 1rem;
+        }
+
+        .currency-input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: nowrap;
+            /* Prevent wrapping for flag/select */
+        }
+
+        input[type="number"],
+        input[type="text"],
+        /* Style for search inputs */
+        input[type="date"],
+        /* Style for date input */
+        select {
+            flex-grow: 1;
+            /* Allow select/input to grow */
+            padding: 14px 18px;
+            border: 1px solid #cbd5e1;
+            border-radius: 10px;
+            font-size: 1.1rem;
+            color: #2d3748;
+            direction: ltr;
+            /* Default LTR for number and date inputs regardless of page direction */
+            text-align: left;
+            /* Default LTR for number and date inputs regardless of page direction */
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.08);
+            transition: border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out;
+            -webkit-appearance: none;
+            -moz-appearance: none;
+            appearance: none;
+            background-color: #ffffff;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            /* Arrow on the right for LTR default */
+            padding-right: 45px;
+            /* Space for the custom arrow */
+        }
+
+        html[dir="rtl"] input[type="number"],
+        html[dir="rtl"] input[type="text"],
+        html[dir="rtl"] input[type="date"] {
+            direction: rtl;
+            /* Force RTL for these if HTML dir is RTL */
+            text-align: right;
+            /* Force RTL for these if HTML dir is RTL */
+        }
+
+        /* Custom arrow for select only */
+        select {
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="feather feather-chevron-down"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+            background-repeat: no-repeat;
+            background-position: right 15px center;
+            /* Arrow on the right for LTR default */
+            padding-right: 45px;
+            /* Space for the custom arrow */
+            padding-left: 18px;
+            /* Reset left padding for LTR selects */
+        }
+
+        html[dir="rtl"] select {
+            background-position: left 15px center;
+            /* Arrow on the left for RTL selects */
+            padding-left: 45px;
+            padding-right: 18px;
+            /* Reset right padding for RTL selects */
+        }
+
+        input[type="number"]::-webkit-outer-spin-button,
+        input[type="number"]::-webkit-inner-spin-button {
+            -webkit-appearance: none;
+            margin: 0;
+        }
+
+        input[type="number"] {
+            -moz-appearance: textfield;
+        }
+
+        input[type="number"]:focus,
+        input[type="text"]:focus,
+        input[type="date"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 4px rgba(66, 153, 225, 0.3);
+        }
+
+        .currency-flag {
+            width: 32px;
+            /* Flag size */
+            height: 24px;
+            border-radius: 4px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            flex-shrink: 0;
+            /* Prevent flag from shrinking */
+            object-fit: cover;
+            /* Ensure image covers the area */
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            /* Subtle border for flag */
+        }
+
+        html[dir="rtl"] .currency-input-wrapper .currency-flag {
+            order: 1;
+            /* Place flag before select for RTL */
+        }
+
+        html[dir="rtl"] .currency-input-wrapper select {
+            order: 2;
+            /* Place select after flag for RTL */
+        }
+
+
+        /* Swap Button */
+        .swap-button-wrapper {
+            display: flex;
+            justify-content: center;
+            margin: 10px 0;
+        }
+
+        .swap-button {
+            background-color: #4299e1;
+            color: #ffffff;
+            border: none;
+            border-radius: 50%;
+            /* Circular button */
+            width: 45px;
+            height: 45px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .swap-button:hover {
+            background-color: #3182ce;
+            transform: rotate(90deg) scale(1.05);
+            /* Rotate and slight scale on hover */
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.15);
+        }
+
+        .swap-button svg {
+            width: 24px;
+            height: 24px;
+            fill: currentColor;
+        }
+
+
+        /* Result Display */
+        .result-display-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .result-display {
+            background-color: #e6f1f8;
+            border: 1px solid #bfdcf2;
+            border-radius: 10px;
+            padding: 25px;
+            text-align: center;
+            font-size: 1.6rem;
+            font-weight: 600;
+            color: #2b6cb0;
+            min-height: 80px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            word-break: break-all;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.08);
+            flex-grow: 1;
+            /* Allow result to take space */
+
+            opacity: 1;
+            transform: scale(1);
+            transition: opacity 0.3s ease, transform 0.3s ease;
+            /* Animation for result */
+        }
+
+        .result-display.updating {
+            opacity: 0;
+            transform: scale(0.95);
+        }
+
+        .result-display.updated {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Copy Button */
+        .copy-button {
+            background-color: #63b3ed;
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 15px;
+            font-size: 0.9rem;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .copy-button:hover {
+            background-color: #4299e1;
+            transform: translateY(-1px);
+        }
+
+        .copy-button svg {
+            width: 18px;
+            height: 18px;
+            fill: currentColor;
+        }
+
+
+        /* Loading/Error Message */
+        .message {
+            text-align: center;
+            font-size: 0.95rem;
+            color: #718096;
+            padding: 10px;
+            border-radius: 8px;
+            background-color: #f7fafc;
+            min-height: 40px;
+            /* Consistent height for messages */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            /* Space between spinner/icon and text */
+        }
+
+        .message.error {
+            color: #e53e3e;
+            background-color: #fee2e2;
+            font-weight: 500;
+        }
+
+        .message.loading {
+            color: #3182ce;
+            background-color: #e2f0fb;
+            font-weight: 500;
+        }
+
+        .message .error-icon {
+            display: none;
+            /* Hidden by default */
+            color: #e53e3e;
+            font-size: 1.2rem;
+        }
+
+        .message.error .error-icon {
+            display: inline-block;
+        }
+
+        /* Loading Spinner */
+        .loading-spinner {
+            display: none;
+            /* Hidden by default */
+            border: 4px solid #f3f3f3;
+            border-top: 4px solid #3498db;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            animation: spin 1s linear infinite;
+        }
+
+        body.dark-mode .loading-spinner {
+            border-top: 4px solid #63b3ed;
+        }
+
+        @keyframes spin {
+            0% {
+                transform: rotate(0deg);
+            }
+
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* Error Shake Animation */
+        @keyframes shake {
+
+            0%,
+            100% {
+                transform: translateX(0);
+            }
+
+            10%,
+            30%,
+            50%,
+            70%,
+            90% {
+                transform: translateX(-5px);
+            }
+
+            20%,
+            40%,
+            60%,
+            80% {
+                transform: translateX(5px);
+            }
+        }
+
+        .message.error.shake {
+            animation: shake 0.5s;
+        }
+
+        /* Retry Button */
+        .retry-button {
+            background-color: #6c757d;
+            /* Gray color */
+            color: #ffffff;
+            border: none;
+            border-radius: 8px;
+            padding: 8px 15px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            margin-top: 10px;
+            /* Space from message */
+            display: block;
+            /* Take full width for easier tapping */
+            width: fit-content;
+            /* Adjust width to content */
+            margin-left: auto;
+            /* Center button */
+            margin-right: auto;
+        }
+
+        .retry-button:hover {
+            background-color: #5a6268;
+            transform: translateY(-1px);
+        }
+
+        body.dark-mode .retry-button {
+            background-color: #7f8c8d;
+        }
+
+        body.dark-mode .retry-button:hover {
+            background-color: #6c757d;
+        }
+
+        /* Chart Canvas Style */
+        #rateChart {
+            max-width: 100%;
+            height: 250px;
+            /* Fixed height for chart */
+            background-color: #f7f9fb;
+            border-radius: 10px;
+            padding: 10px;
+            box-shadow: inset 0 0 8px rgba(0, 0, 0, 0.05);
+            margin-top: 20px;
+        }
+
+        /* API Key Modal Styles */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .modal-content {
+            background-color: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+            text-align: center;
+            max-width: 450px;
+            width: 90%;
+            position: relative;
+            color: #334155;
+            animation: fadeInScale 0.3s ease-out forwards;
+        }
+
+        body.dark-mode .modal-content {
+            background-color: #2b3b4a;
+            color: #ecf0f1;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+        }
+
+        .modal-content h2 {
+            font-size: 1.8rem;
+            margin-bottom: 20px;
+            color: #2c3e50;
+        }
+
+        body.dark-mode .modal-content h2 {
+            color: #e0f2f7;
+        }
+
+        .modal-content p {
+            margin-bottom: 25px;
+            font-size: 1rem;
+            line-height: 1.5;
+        }
+
+        .modal-content input[type="text"] {
+            width: calc(100% - 30px);
+            padding: 12px 15px;
+            margin-bottom: 25px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            font-size: 1rem;
+            box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.05);
+            transition: border-color 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        body.dark-mode .modal-content input[type="text"] {
+            background-color: #3d5167;
+            border-color: #566c82;
+            color: #ecf0f1;
+        }
+
+        .modal-content input[type="text"]:focus {
+            outline: none;
+            border-color: #63b3ed;
+            box-shadow: 0 0 0 3px rgba(66, 153, 225, 0.25);
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+        }
+
+        .modal-buttons button {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 8px;
+            font-size: 1rem;
+            cursor: pointer;
+            transition: background-color 0.2s ease, transform 0.2s ease;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        #useDefaultKeyButton {
+            background-color: #a0aec0;
+            color: #ffffff;
+        }
+
+        #useDefaultKeyButton:hover {
+            background-color: #718096;
+            transform: translateY(-2px);
+        }
+
+        body.dark-mode #useDefaultKeyButton {
+            background-color: #64748b;
+        }
+
+        body.dark-mode #useDefaultKeyButton:hover {
+            background-color: #4b5563;
+        }
+
+        #submitApiKeyButton {
+            background-color: #4299e1;
+            color: #ffffff;
+        }
+
+        #submitApiKeyButton:hover {
+            background-color: #3182ce;
+            transform: translateY(-2px);
+        }
+
+        .api-key-status {
+            position: absolute;
+            bottom: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            background-color: #e2e8f0;
+            padding: 8px 15px;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            color: #4a5568;
+            text-align: center;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+            z-index: 50;
+            /* Above other elements, below modal */
+        }
+
+        body.dark-mode .api-key-status {
+            background-color: #34495e;
+            color: #bdc3c7;
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: scale(0.9);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+
+        /* Responsive Adjustments */
+        @media (max-width: 600px) {
+            .container {
+                padding: 25px;
+                gap: 20px;
+            }
+
+            h1 {
+                font-size: 2rem;
+            }
+
+            input[type="number"],
+            input[type="text"],
+            input[type="date"],
+            select {
+                padding: 12px 15px;
+                font-size: 1rem;
+            }
+
+            .result-display {
+                font-size: 1.4rem;
+                padding: 20px;
+                min-height: 70px;
+            }
+
+            .top-bar {
+                top: 15px;
+                left: 15px;
+                right: auto;
+                gap: 8px;
+                flex-direction: column;
+                /* Stack buttons vertically on small screens */
+                align-items: flex-start;
+                /* Align stacked buttons to the start */
+            }
+
+            html[dir="ltr"] .top-bar {
+                left: auto;
+                right: 15px;
+                align-items: flex-end;
+                /* Align stacked buttons to the end for LTR */
+            }
+
+            html[dir="rtl"] .top-bar {
+                left: 15px;
+                right: auto;
+                align-items: flex-start;
+                /* Align stacked buttons to the start for RTL */
+            }
+
+            .lang-toggle-button,
+            .dark-mode-toggle,
+            .feedback-button {
+                padding: 6px 12px;
+                font-size: 0.8rem;
+                width: auto;
+                /* Adjust width for stacked buttons */
+            }
+
+            .swap-button {
+                width: 40px;
+                height: 40px;
+            }
+
+            .copy-button {
+                padding: 8px 12px;
+                font-size: 0.85rem;
+            }
+
+            .currency-flag {
+                width: 28px;
+                height: 21px;
+            }
+
+            .message {
+                font-size: 0.9rem;
+            }
+
+            #rateChart {
+                height: 200px;
+                /* Smaller height for mobile chart */
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <button id="langToggleButton" class="lang-toggle-button" aria-label="Toggle language">English</button>
+            <button id="darkModeToggle" class="dark-mode-toggle" aria-label="Toggle dark mode">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" class="feather feather-moon">
+                    <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"></path>
+                </svg>
+            </button>
+            <button id="feedbackButton" class="feedback-button" aria-label="Provide feedback">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor" stroke="currentColor"
+                    stroke-width="0" stroke-linecap="round" stroke-linejoin="round"
+                    class="feather feather-message-square">
+                    <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path>
+                </svg>
+                <span data-lang-key="feedbackText">Feedback</span>
+            </button>
+        </div>
+
+        <h1 data-lang-key="heading">Currency Converter</h1>
+
+        <div class="input-group">
+            <label for="amountInput" data-lang-key="amountLabel">Amount:</label>
+            <input type="number" id="amountInput" value="1" min="0.01" step="0.01" aria-label="Amount to convert">
+        </div>
+
+        <div class="input-group">
+            <label for="fromCurrencySearch" data-lang-key="fromCurrencyLabel">From Currency:</label>
+            <input type="text" id="fromCurrencySearch" class="currency-search-input" data-lang-key="searchPlaceholder"
+                placeholder="Search...">
+            <div class="currency-input-wrapper">
+                <img id="fromFlag" class="currency-flag" alt="From Currency Flag" src="">
+                <select id="fromCurrencySelect" aria-label="Select source currency"></select>
+            </div>
+        </div>
+
+        <div class="swap-button-wrapper">
+            <button id="swapCurrenciesButton" class="swap-button" aria-label="Swap currencies">
+                <svg viewBox="0 0 24 24">
+                    <path d="M16 11V7l4 4-4 4v-4H8v4l-4-4 4-4v4h8z" />
+                </svg>
+            </button>
+        </div>
+
+        <div class="input-group">
+            <label for="toCurrencySearch" data-lang-key="toCurrencyLabel">To Currency:</label>
+            <input type="text" id="toCurrencySearch" class="currency-search-input" data-lang-key="searchPlaceholder"
+                placeholder="Search...">
+            <div class="currency-input-wrapper">
+                <img id="toFlag" class="currency-flag" alt="To Currency Flag" src="">
+                <select id="toCurrencySelect" aria-label="Select target currency"></select>
+            </div>
+        </div>
+
+        <div class="result-display-wrapper">
+            <div class="result-display" id="resultDisplay" aria-live="polite">
+                <!-- Conversion result will appear here -->
+            </div>
+            <button id="copyButton" class="copy-button" aria-label="Copy result to clipboard">
+                <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round" class="feather feather-copy">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                </svg>
+                <span data-lang-key="copyText">Copy</span>
+            </button>
+        </div>
+
+        <div class="input-group">
+            <label for="historyDate" data-lang-key="historyDateLabel">Historical Date:</label>
+            <input type="date" id="historyDate" aria-label="Select historical date">
+        </div>
+
+        <canvas id="rateChart" aria-label="Exchange Rate Trend Chart"></canvas>
+
+        <div class="message" id="messageArea" aria-live="assertive">
+            <div class="loading-spinner" id="loadingSpinner"></div>
+            <span class="error-icon" id="errorIcon">!</span>
+            <span id="messageText"></span>
+            <button id="retryButton" class="retry-button" data-lang-key="retryButtonText"
+                style="display:none;">Retry</button>
+        </div>
+        <div id="apiKeyStatus" class="api-key-status" aria-live="polite"></div>
+    </div>
+
+    <!-- API Key Modal -->
+    <div id="apiKeyModal" class="modal-overlay" style="display: none;">
+        <div class="modal-content">
+            <h2 data-lang-key="apiKeyModalTitle">Enter Your API Key</h2>
+            <p id="apiKeyModalDescription" data-lang-key="apiKeyModalDescription">You can use the app's default API key
+                for <span id="remainingUses"></span> 5 conversions, or enter your personal ExchangeRate-API key for
+                unlimited use. Get your personal API key from <a href="https://www.exchangerate-api.com/"
+                    target="_blank" rel="noopener noreferrer">ExchangeRate-API.com</a>.
+            </p>
+            <input type="text" id="userApiKeyInput" placeholder="Your personal ExchangeRate-API Key"
+                data-lang-key="apiKeyPlaceholder">
+            <p id="apiKeyError" class="message error" style="display: none;"></p>
+            <div class="modal-buttons">
+                <button id="useDefaultKeyButton" data-lang-key="useDefaultKey">Use Default Key</button>
+                <button id="submitApiKeyButton" data-lang-key="submitApiKey">Submit Key</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Default API Key (Replace with your actual key if deploying)
+        const DEFAULT_API_KEY = '40dd16f5c8c387fc5f2588b5';
+        const DEFAULT_API_KEY_LIMIT = 5; // Number of uses allowed for the default key
+
+        let currentApiKey = '';
+        let defaultKeyUsesLeft = DEFAULT_API_KEY_LIMIT;
+        let isUsingDefaultKey = false;
+
+
+        // DOM Elements
+        const amountInput = document.getElementById('amountInput');
+        const fromCurrencySelect = document.getElementById('fromCurrencySelect');
+        const toCurrencySelect = document.getElementById('toCurrencySelect');
+        const fromCurrencySearch = document.getElementById('fromCurrencySearch');
+        const toCurrencySearch = document.getElementById('toCurrencySearch');
+        const historyDateInput = document.getElementById('historyDate');
+        const resultDisplay = document.getElementById('resultDisplay');
+        const messageArea = document.getElementById('messageArea');
+        const messageText = document.getElementById('messageText');
+        const loadingSpinner = document.getElementById('loadingSpinner');
+        const errorIcon = document.getElementById('errorIcon'); // Error icon element
+        const retryButton = document.getElementById('retryButton'); // Retry button element
+        const htmlElement = document.documentElement;
+        const langToggleButton = document.getElementById('langToggleButton');
+        const darkModeToggle = document.getElementById('darkModeToggle');
+        const feedbackButton = document.getElementById('feedbackButton');
+        const fromFlag = document.getElementById('fromFlag');
+        const toFlag = document.getElementById('toFlag');
+        const swapCurrenciesButton = document.getElementById('swapCurrenciesButton');
+        const copyButton = document.getElementById('copyButton');
+        const rateChartCanvas = document.getElementById('rateChart');
+
+        // API Key Modal Elements
+        const apiKeyModal = document.getElementById('apiKeyModal');
+        const userApiKeyInput = document.getElementById('userApiKeyInput');
+        const remainingUsesSpan = document.getElementById('remainingUses');
+        const useDefaultKeyButton = document.getElementById('useDefaultKeyButton');
+        const submitApiKeyButton = document.getElementById('submitApiKeyButton');
+        const apiKeyError = document.getElementById('apiKeyError');
+        const apiKeyStatus = document.getElementById('apiKeyStatus');
+
+
+        let exchangeRates = {};
+        let currentLanguage = 'en'; // Default language set to English
+        let chartInstance = null; // To hold Chart.js instance
+
+        // Translations object
+        const translations = {
+            ar: {
+                appTitle: 'محول العملات',
+                langToggleText: 'English',
+                darkModeToggleText: 'وضع الليل',
+                feedbackText: 'ملاحظات',
+                heading: 'محول العملات',
+                amountLabel: 'المبلغ:',
+                searchPlaceholder: 'بحث...',
+                fromCurrencyLabel: 'من عملة:',
+                toCurrencyLabel: 'إلى عملة:',
+                historyDateLabel: 'تاريخ سابق:',
+                enterValidAmount: 'أدخل مبلغًا صحيحًا',
+                noExchangeRates: 'لا تتوفر أسعار صرف. يرجى الانتظار أو التحقق من الاتصال.',
+                invalidCurrency: 'عملة غير صالحة',
+                fetchingRates: 'جاري جلب أسعار الصرف...',
+                fetchingHistory: 'جاري جلب الأسعار التاريخية...',
+                fetchError: 'خطأ في جلب أسعار الصرف: ',
+                checkApiKey: '. يرجى التأكد من صحة مفتاح الـ API الخاص بك والاتصال بالإنترنت.',
+                error: 'خطأ',
+                unknownApiError: 'خطأ غير معروف من الـ API',
+                n_a: 'غير متوفر',
+                copiedToClipboard: 'تم النسخ إلى الحافظة!',
+                copyFailed: 'فشل النسخ.',
+                copyText: 'نسخ',
+                retryButtonText: 'إعادة المحاولة',
+                usingCachedRates: 'جاري استخدام الأسعار المخزنة مؤقتًا (قد لا تكون الأحدث).',
+                apiKeyModalTitle: 'أدخل مفتاح API الخاص بك',
+                apiKeyModalDescription: 'يمكنك استخدام مفتاح API 5 الافتراضي الخاص بالتطبيق لـ  <span id="remainingUses"></span> تحويل، أو إدخال مفتاح ExchangeRate-API الشخصي الخاص بك للاستخدام غير المحدود. احصل على مفتاح API الخاص بك من <a href="https://www.exchangerate-api.com/" target="_blank" rel="noopener noreferrer">ExchangeRate-API.com</a>.',
+                apiKeyPlaceholder: 'مفتاح ExchangeRate-API الشخصي الخاص بك',
+                useDefaultKey: 'استخدام المفتاح الافتراضي',
+                submitApiKey: 'إرسال المفتاح',
+                apiKeyRequired: 'مفتاح API مطلوب.',
+                apiKeySaveError: 'خطأ في حفظ مفتاح API.',
+                usingUserKey: 'جاري استخدام مفتاح API الشخصي الخاص بك.',
+                usingDefaultKey: 'جاري استخدام مفتاح API الافتراضي للتطبيق (<span id="currentRemainingUses"></span> استخدامات متبقية).',
+                defaultKeyLimitReached: 'انتهت استخدامات المفتاح الافتراضي للتطبيق. يرجى إدخال مفتاح API الشخصي الخاص بك.',
+                invalidApiKey: 'مفتاح API غير صالح. يرجى التحقق وإعادة المحاولة.',
+                defaultKeyEntered: 'لا يمكن استخدام المفتاح الافتراضي هنا. يرجى استخدام زر "استخدام المفتاح الافتراضي" أو إدخال مفتاح API الشخصي الفريد الخاص بك.',
+                historicalPremium: 'البيانات التاريخية هي ميزة مميزة وتتطلب مفتاح API مدفوعًا.'
+            },
+            en: {
+                appTitle: 'Currency Converter',
+                langToggleText: 'العربية',
+                darkModeToggleText: 'Dark Mode',
+                feedbackText: 'Feedback',
+                heading: 'Currency Converter',
+                amountLabel: 'Amount:',
+                searchPlaceholder: 'Search...',
+                fromCurrencyLabel: 'From Currency:',
+                toCurrencyLabel: 'To Currency:',
+                historyDateLabel: 'Historical Date:',
+                enterValidAmount: 'Enter a valid amount',
+                noExchangeRates: 'No exchange rates available. Please wait or check connection.',
+                invalidCurrency: 'Invalid currency',
+                fetchingRates: 'Fetching exchange rates...',
+                fetchingHistory: 'Fetching historical rates...',
+                fetchError: 'Failed to fetch exchange rates: ',
+                checkApiKey: '. Please ensure your API key is correct and connected to the internet.',
+                error: 'Error',
+                unknownApiError: 'Unknown API error',
+                n_a: 'N/A',
+                copiedToClipboard: 'Copied to clipboard!',
+                copyFailed: 'Failed to copy.',
+                copyText: 'Copy',
+                retryButtonText: 'Retry',
+                usingCachedRates: 'Using cached rates (may not be the latest).',
+                apiKeyModalTitle: 'Enter Your API Key',
+                apiKeyModalDescription: 'You can use the app\'s default API key for <span id="remainingUses"></span> 5 conversions, or enter your personal ExchangeRate-API key for unlimited use. Get your personal API key from <a href="https://www.exchangerate-api.com/" target="_blank" rel="noopener noreferrer">ExchangeRate-API.com</a>.',
+                apiKeyPlaceholder: 'Your personal ExchangeRate-API Key',
+                useDefaultKey: 'Use Default Key',
+                submitApiKey: 'Submit Key',
+                apiKeyRequired: 'API Key is required.',
+                apiKeySaveError: 'Error saving API key.',
+                usingUserKey: 'Using your personal API Key.',
+                usingDefaultKey: 'Using the app\'s default API Key (<span id="currentRemainingUses"></span> uses left).',
+                defaultKeyLimitReached: 'The app\'s default API key uses exhausted. Please enter your personal API key.',
+                invalidApiKey: 'Invalid API Key. Please check and try again.',
+                defaultKeyEntered: 'This is the app\'s default key. Please use the "Use Default Key" button, or enter your own unique personal API key.',
+                historicalPremium: 'Historical data is a premium feature and requires a paid API key.'
+            }
+        };
+
+        // Comprehensive list of currency codes, names, and associated country flags
+        // Using ISO 3166-1 alpha-2 country codes for flags from flagcdn.com
+        const currencyDetails = {
+            "USD": { name: "United States Dollar", countryCode: "us" },
+            "EUR": { name: "Euro", countryCode: "eu" }, // EU flag
+            "JPY": { name: "Japanese Yen", countryCode: "jp" },
+            "GBP": { name: "British Pound", countryCode: "gb" },
+            "AUD": { name: "Australian Dollar", countryCode: "au" },
+            "CAD": { name: "Canadian Dollar", countryCode: "ca" },
+            "CHF": { name: "Swiss Franc", countryCode: "ch" },
+            "CNY": { name: "Chinese Yuan", countryCode: "cn" },
+            "SEK": { name: "Swedish Krona", countryCode: "se" },
+            "NZD": { name: "New Zealand Dollar", countryCode: "nz" },
+            "MXN": { name: "Mexican Peso", countryCode: "mx" },
+            "SGD": { name: "Singapore Dollar", countryCode: "sg" },
+            "HKD": { name: "Hong Kong Dollar", countryCode: "hk" },
+            "NOK": { name: "Norwegian Krone", countryCode: "no" },
+            "KRW": { name: "South Korean Won", countryCode: "kr" },
+            "TRY": { name: "Turkish Lira", countryCode: "tr" },
+            "RUB": { name: "Russian Ruble", countryCode: "ru" },
+            "INR": { name: "Indian Rupee", countryCode: "in" },
+            "BRL": { name: "Brazilian Real", countryCode: "br" },
+            "ZAR": { name: "South African Rand", countryCode: "za" },
+            "SAR": { name: "Saudi Riyal", countryCode: "sa" },
+            "AED": { name: "UAE Dirham", countryCode: "ae" },
+            "EGP": { name: "Egyptian Pound", countryCode: "eg" },
+            "QAR": { name: "Qatari Riyal", countryCode: "qa" },
+            "KWD": { name: "Kuwaiti Dinar", countryCode: "kw" },
+            "BHD": { name: "Bahraini Dinar", countryCode: "bh" },
+            "OMR": { name: "Omani Rial", countryCode: "om" },
+            "JOD": { name: "Jordanian Dinar", countryCode: "jo" },
+            "LBP": { name: "Lebanese Pound", countryCode: "lb" },
+            "SYP": { name: "Syrian Pound", countryCode: "sy" },
+            "IQD": { name: "Iraqi Dinar", countryCode: "iq" },
+            "DZD": { name: "Algerian Dinar", countryCode: "dz" },
+            "MAD": { name: "Moroccan Dirham", countryCode: "ma" },
+            "TND": { name: "Tunisian Dinar", countryCode: "tn" },
+            "LYD": { name: "Libyan Dinar", countryCode: "ly" },
+            "SDG": { name: "Sudanese Pound", countryCode: "sd" },
+            "YER": { name: "Yemeni Rial", countryCode: "ye" },
+            "XOF": { name: "West African CFA Franc", countryCode: "bj" }, /* Example for a multi-country currency */
+            "XAF": { name: "Central African CFA Franc", countryCode: "cm" } /* Example for a multi-country currency */
+        };
+
+        // Function to set the language
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            htmlElement.setAttribute('dir', lang === 'ar' ? 'rtl' : 'ltr');
+            htmlElement.setAttribute('lang', lang);
+
+            document.querySelectorAll('[data-lang-key]').forEach(element => {
+                const key = element.getAttribute('data-lang-key');
+                if (translations[lang][key]) {
+                    if (element.tagName === 'TITLE') {
+                        element.textContent = translations[lang][key];
+                    } else if (element.id === 'copyButton' && key === 'copyText') {
+                        element.querySelector('span').textContent = translations[lang][key];
+                    } else if (element.id === 'fromCurrencySearch' || element.id === 'toCurrencySearch') {
+                        element.placeholder = translations[lang][key];
+                    } else if (element.id === 'apiKeyModalDescription') {
+                        // Special handling for the API key description to preserve the span and the link
+                        element.innerHTML = translations[lang][key];
+                        // Re-select the span after setting innerHTML to ensure its content is updated
+                        remainingUsesSpan.textContent = defaultKeyUsesLeft;
+                    }
+                    else {
+                        element.textContent = translations[lang][key];
+                    }
+                }
+            });
+
+            langToggleButton.textContent = translations[lang].langToggleText;
+            darkModeToggle.setAttribute('aria-label', translations[lang].darkModeToggleText);
+            feedbackButton.setAttribute('aria-label', translations[lang].feedbackText);
+            retryButton.textContent = translations[lang].retryButtonText;
+            userApiKeyInput.placeholder = translations[lang].apiKeyPlaceholder;
+            useDefaultKeyButton.textContent = translations[lang].useDefaultKey;
+            submitApiKeyButton.textContent = translations[lang].submitApiKey;
+
+
+            // Re-run conversion to update result text if applicable
+            convertCurrency();
+            // Re-fetch rates to update message if there was an error or loading
+            if (messageArea.className.includes('error') || messageArea.className.includes('loading')) {
+                messageText.textContent = ''; // Clear existing text before update by fetch
+                if (messageArea.className.includes('loading')) {
+                    messageText.textContent = translations[currentLanguage].fetchingRates;
+                } else if (messageArea.className.includes('error')) {
+                    // This is handled by the catch block of fetchExchangeRates, so re-trigger it.
+                    fetchExchangeRates();
+                }
+            } else {
+                messageText.textContent = ''; // Clear message if not error/loading state
+            }
+            updateApiKeyStatusDisplay(); // Update API key status display
+        }
+
+        // Function to show the API Key modal
+        function showApiKeyModal(showError = false, errorMsg = '') {
+            apiKeyModal.style.display = 'flex';
+            remainingUsesSpan.textContent = defaultKeyUsesLeft; // Ensure the span is updated
+            if (showError) {
+                apiKeyError.textContent = errorMsg;
+                apiKeyError.style.display = 'block';
+                apiKeyError.classList.add('shake');
+                setTimeout(() => apiKeyError.classList.remove('shake'), 500);
+            } else {
+                apiKeyError.style.display = 'none';
+            }
+        }
+
+        // Function to hide the API Key modal
+        function hideApiKeyModal() {
+            apiKeyModal.style.display = 'none';
+            apiKeyError.style.display = 'none';
+            userApiKeyInput.value = ''; // Clear input on hide
+        }
+
+        // Function to update the API key status display
+        function updateApiKeyStatusDisplay() {
+            if (currentApiKey) {
+                if (isUsingDefaultKey) {
+                    apiKeyStatus.innerHTML = translations[currentLanguage].usingDefaultKey.replace('<span id="currentRemainingUses"></span>', `<span id="currentRemainingUses">${defaultKeyUsesLeft}</span>`);
+                } else {
+                    apiKeyStatus.textContent = translations[currentLanguage].usingUserKey;
+                }
+            } else {
+                apiKeyStatus.textContent = ''; // Clear if no key is set yet
+            }
+        }
+
+        // Function to fetch currency data from API
+        async function fetchExchangeRates() {
+            if (!currentApiKey) {
+                messageText.textContent = translations[currentLanguage].apiKeyRequired;
+                messageArea.className = 'message error';
+                resultDisplay.textContent = translations[currentLanguage].error;
+                showApiKeyModal(true, translations[currentLanguage].apiKeyRequired);
+                return;
+            }
+
+            messageText.textContent = translations[currentLanguage].fetchingRates;
+            messageArea.className = 'message loading';
+            loadingSpinner.style.display = 'block'; // Show spinner
+            errorIcon.style.display = 'none'; // Hide error icon
+            retryButton.style.display = 'none'; // Hide retry button
+
+            const baseCurrency = 'USD'; // Always fetch base USD for comprehensive rates
+            const requestUrl = `https://v6.exchangerate-api.com/v6/${currentApiKey}/latest/${baseCurrency}`;
+
+            console.log(`Attempting to fetch exchange rates from: ${requestUrl}`);
+
+            try {
+                const response = await fetch(requestUrl);
+                const data = await response.json();
+
+                if (!response.ok || data.result === 'error') {
+                    let errorMessage = `${translations[currentLanguage].fetchError}HTTP Error! Status: ${response.status}`;
+                    if (data && data['error-type']) {
+                        errorMessage += `. API Error: ${data['error-type']}`;
+
+                        if (data['error-type'] === 'invalid-key' || data['error-type'] === 'unsupported-code') {
+                            showApiKeyModal(true, translations[currentLanguage].invalidApiKey);
+                            currentApiKey = ''; // Clear the invalid key
+                            localStorage.removeItem('userApiKey');
+                            isUsingDefaultKey = false;
+                            updateApiKeyStatusDisplay();
+                            return; // Stop further processing as key is invalid
+                        }
+                    }
+                    throw new Error(errorMessage);
+                }
+
+                if (data.result === 'success') {
+                    exchangeRates = data.conversion_rates;
+                    localStorage.setItem('cachedExchangeRates', JSON.stringify(exchangeRates)); // Cache rates
+                    const availableCurrencies = Object.keys(exchangeRates).filter(code => currencyDetails[code]);
+                    populateCurrencySelects(availableCurrencies);
+                    messageText.textContent = '';
+                    messageArea.className = 'message';
+                    loadingSpinner.style.display = 'none';
+                    convertCurrency();
+                    fetchAndRenderChart(); // Fetch and render chart after rates are available
+
+                    if (isUsingDefaultKey) {
+                        defaultKeyUsesLeft--;
+                        localStorage.setItem('defaultApiKeyUses', defaultKeyUsesLeft);
+                        updateApiKeyStatusDisplay();
+                        if (defaultKeyUsesLeft <= 0) {
+                            showApiKeyModal(true, translations[currentLanguage].defaultKeyLimitReached);
+                            currentApiKey = ''; // Force user to enter new key
+                            isUsingDefaultKey = false;
+                            localStorage.removeItem('userApiKey'); // Ensure no user key is mistakenly set
+                        }
+                    }
+                    hideApiKeyModal(); // Hide modal if successfully fetched
+                } else {
+                    throw new Error(data.result === 'error' ? data['error-type'] : translations[currentLanguage].unknownApiError);
+                }
+            } catch (error) {
+                console.error('Failed to fetch exchange rates:', error);
+                loadingSpinner.style.display = 'none'; // Hide spinner
+                errorIcon.style.display = 'inline-block'; // Show error icon
+
+                let cachedRates = localStorage.getItem('cachedExchangeRates');
+                if (cachedRates) {
+                    exchangeRates = JSON.parse(cachedRates);
+                    const availableCurrencies = Object.keys(exchangeRates).filter(code => currencyDetails[code]);
+                    populateCurrencySelects(availableCurrencies);
+                    messageText.textContent = `${translations[currentLanguage].fetchError}${error.message}. ${translations[currentLanguage].usingCachedRates}`;
+                    messageArea.className = 'message error shake';
+                    resultDisplay.textContent = translations[currentLanguage].error;
+                    retryButton.style.display = 'block'; // Show retry button
+                    convertCurrency(); // Try to convert with cached rates
+                } else {
+                    messageText.textContent = `${translations[currentLanguage].fetchError}${error.message}${translations[currentLanguage].checkApiKey}`;
+                    messageArea.className = 'message error shake';
+                    resultDisplay.textContent = translations[currentLanguage].error;
+                    retryButton.style.display = 'block'; // Show retry button
+                }
+                setTimeout(() => messageArea.classList.remove('shake'), 500);
+            }
+        }
+
+        // Function to fetch historical rates and render chart
+        async function fetchAndRenderChart() {
+            const base = fromCurrencySelect.value;
+            const target = toCurrencySelect.value;
+            if (!base || !target || !exchangeRates[base] || !exchangeRates[target]) {
+                if (chartInstance) chartInstance.destroy(); // Clear chart if currencies are invalid
+                historyDateInput.disabled = true; // Disable if no valid currencies
+                return;
+            }
+
+            // Always disable historical input and destroy chart if using default key and it's exhausted
+            if (isUsingDefaultKey && defaultKeyUsesLeft <= 0) {
+                if (chartInstance) chartInstance.destroy();
+                historyDateInput.disabled = true;
+                messageText.textContent = translations[currentLanguage].defaultKeyLimitReached; // Show the appropriate message
+                messageArea.className = 'message error shake';
+                errorIcon.style.display = 'inline-block';
+                return;
+            }
+
+            messageText.textContent = translations[currentLanguage].fetchingHistory;
+            messageArea.className = 'message loading';
+            loadingSpinner.style.display = 'block';
+            errorIcon.style.display = 'none';
+            retryButton.style.display = 'none';
+            historyDateInput.disabled = false; // Enable historical input while fetching
+
+
+            const dates = [];
+            const rates = [];
+            const today = new Date();
+            const daysToFetch = 30; // Fetch last 30 days
+
+            try {
+                for (let i = 0; i < daysToFetch; i++) {
+                    const d = new Date(today);
+                    d.setDate(today.getDate() - i);
+                    const year = d.getFullYear();
+                    const month = String(d.getMonth() + 1).padStart(2, '0');
+                    const day = String(d.getDate()).padStart(2, '0');
+                    const dateString = `${year}/${month}/${day}`;
+
+                    const historicalUrl = `https://v6.exchangerate-api.com/v6/${currentApiKey}/history/${base}/${year}/${month}/${day}`;
+                    const response = await fetch(historicalUrl);
+                    const data = await response.json();
+
+                    if (!response.ok || data.result === 'error') {
+                        // Check for 'plan-upgrade-required' specifically
+                        if (data && data['error-type'] === 'plan-upgrade-required') {
+                            throw new Error('plan-upgrade-required'); // Custom error to handle specifically
+                        }
+                        let errorMessage = `HTTP Error for history: ${response.status}`;
+                        if (data && data['error-type']) {
+                            errorMessage += `. API Error: ${data['error-type']}`;
+                        }
+                        throw new Error(errorMessage);
+                    }
+
+
+                    if (data.result === 'success' && data.conversion_rates && data.conversion_rates[target]) {
+                        dates.unshift(dateString); // Add to front for ascending order
+                        rates.unshift(data.conversion_rates[target]);
+                    } else if (data.result === 'error') {
+                        console.warn(`Failed to fetch historical data for ${dateString}: ${data['error-type']}`);
+                    }
+                }
+
+                if (dates.length > 0) {
+                    renderChart(dates, rates, base, target);
+                    messageText.textContent = '';
+                    messageArea.className = 'message';
+                    loadingSpinner.style.display = 'none';
+                } else {
+                    throw new Error('No historical data available for chart.');
+                }
+
+            } catch (error) {
+                console.error('Failed to fetch historical rates or render chart:', error);
+                loadingSpinner.style.display = 'none';
+                errorIcon.style.display = 'inline-block';
+                retryButton.style.display = 'block';
+                historyDateInput.disabled = true; // Disable historical input on error
+
+                if (error.message === 'plan-upgrade-required') {
+                    messageText.textContent = translations[currentLanguage].historicalPremium;
+                    messageArea.className = 'message error shake';
+                    if (chartInstance) chartInstance.destroy(); // Destroy chart
+                } else {
+                    messageText.textContent = `${translations[currentLanguage].fetchError} (Chart): ${error.message}. ${translations[currentLanguage].checkApiKey}`;
+                    messageArea.className = 'message error shake';
+                    if (chartInstance) chartInstance.destroy();
+                }
+                setTimeout(() => messageArea.classList.remove('shake'), 500);
+            }
+        }
+
+        // Function to render the chart
+        function renderChart(dates, rates, base, target) {
+            if (chartInstance) {
+                chartInstance.destroy(); // Destroy previous chart instance
+            }
+
+            const ctx = rateChartCanvas.getContext('2d');
+            chartInstance = new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: dates,
+                    datasets: [{
+                        label: `${base} to ${target} Exchange Rate`,
+                        data: rates,
+                        borderColor: '#4299e1',
+                        backgroundColor: 'rgba(66, 153, 225, 0.2)',
+                        borderWidth: 2,
+                        tension: 0.4, // Smoother line
+                        fill: true,
+                        pointRadius: 3,
+                        pointBackgroundColor: '#4299e1',
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            grid: {
+                                display: false
+                            },
+                            ticks: {
+                                color: document.body.classList.contains('dark-mode') ? '#ecf0f1' : '#334155' // Dynamic tick color
+                            }
+                        },
+                        y: {
+                            beginAtZero: false,
+                            grid: {
+                                color: document.body.classList.contains('dark-mode') ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)' // Dynamic grid color
+                            },
+                            ticks: {
+                                color: document.body.classList.contains('dark-mode') ? '#ecf0f1' : '#334155' // Dynamic tick color
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            labels: {
+                                color: document.body.classList.contains('dark-mode') ? '#ecf0f1' : '#334155' // Dynamic legend color
+                            }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function (context) {
+                                    return `${context.dataset.label}: ${context.raw.toFixed(4)}`;
+                                }
+                            }
+                        }
+                    },
+                    animation: {
+                        duration: 1000,
+                        easing: 'easeOutQuart'
+                    }
+                }
+            });
+        }
+
+
+        // Function to populate currency dropdowns
+        function populateCurrencySelects(currencies) {
+            fromCurrencySelect.innerHTML = '';
+            toCurrencySelect.innerHTML = '';
+
+            currencies.sort().forEach(currencyCode => { // Sort currencies alphabetically
+                const details = currencyDetails[currencyCode];
+                if (details) { // Only add if details are available
+                    const optionText = `${currencyCode} - ${details.name}`;
+
+                    const optionFrom = document.createElement('option');
+                    optionFrom.value = currencyCode;
+                    optionFrom.textContent = optionText;
+                    fromCurrencySelect.appendChild(optionFrom);
+
+                    const optionTo = document.createElement('option');
+                    optionTo.value = currencyCode;
+                    optionTo.textContent = optionText;
+                    toCurrencySelect.appendChild(optionTo);
+                }
+            });
+
+            // Set default selections and update flags
+            fromCurrencySelect.value = localStorage.getItem('fromCurrency') || 'USD';
+            toCurrencySelect.value = localStorage.getItem('toCurrency') || 'EGP';
+            updateFlags();
+        }
+
+        // Function to update flag images based on selected currencies
+        function updateFlags() {
+            const fromCode = fromCurrencySelect.value;
+            const toCode = toCurrencySelect.value;
+
+            const fromDetails = currencyDetails[fromCode];
+            const toDetails = currencyDetails[toCode];
+
+            fromFlag.src = fromDetails ? `https://flagcdn.com/16x12/${fromDetails.countryCode.toLowerCase()}.png` : '';
+            fromFlag.alt = fromDetails ? `${fromDetails.name} Flag` : '';
+            fromFlag.style.display = fromDetails ? 'block' : 'none';
+
+            toFlag.src = toDetails ? `https://flagcdn.com/16x12/${toDetails.countryCode.toLowerCase()}.png` : '';
+            toFlag.alt = toDetails ? `${toDetails.name} Flag` : '';
+            toFlag.style.display = toDetails ? 'block' : 'none';
+        }
+
+        // Function to filter dropdown options based on search input
+        function filterCurrencyOptions(searchInputId, selectElement) {
+            const searchValue = document.getElementById(searchInputId).value.toLowerCase();
+            let newSelectionNeeded = false;
+            const currentSelectedValue = selectElement.value;
+            let firstVisibleValue = '';
+
+            Array.from(selectElement.options).forEach(option => {
+                const text = option.textContent.toLowerCase();
+                if (text.includes(searchValue)) {
+                    option.style.display = ''; // Show option
+                    if (!firstVisibleValue) {
+                        firstVisibleValue = option.value;
+                    }
+                } else {
+                    option.style.display = 'none'; // Hide option
+                    if (option.value === currentSelectedValue) {
+                        newSelectionNeeded = true; // Current selection is now hidden
+                    }
+                }
+            });
+
+            if (newSelectionNeeded || (!currentSelectedValue && firstVisibleValue)) {
+                // If the previously selected option is now hidden, or nothing was selected
+                // and there's a visible option, try to select the first visible option.
+                selectElement.value = firstVisibleValue;
+                // Trigger change to update conversion and chart
+                selectElement.dispatchEvent(new Event('change'));
+            } else if (!firstVisibleValue && selectElement.value) {
+                // If no options are visible and something is currently selected, clear the selection
+                selectElement.value = '';
+                selectElement.dispatchEvent(new Event('change'));
+            }
+        }
+
+        // Function to convert currency
+        function convertCurrency() {
+            const amount = parseFloat(amountInput.value);
+            const fromCurrency = fromCurrencySelect.value;
+            const toCurrency = toCurrencySelect.value;
+
+            if (isNaN(amount) || amount <= 0) {
+                resultDisplay.textContent = translations[currentLanguage].enterValidAmount;
+                return;
+            }
+
+            if (Object.keys(exchangeRates).length === 0) {
+                resultDisplay.textContent = translations[currentLanguage].noExchangeRates;
+                return;
+            }
+
+            const fromRate = exchangeRates[fromCurrency];
+            const toRate = exchangeRates[toCurrency];
+
+            if (!fromRate || !toRate) {
+                resultDisplay.textContent = translations[currentLanguage].invalidCurrency;
+                return;
+            }
+
+            resultDisplay.classList.add('updating');
+            setTimeout(() => {
+                const convertedAmount = (amount * toRate) / fromRate;
+                resultDisplay.textContent = `${convertedAmount.toFixed(2)} ${toCurrency}`;
+                resultDisplay.classList.remove('updating');
+                resultDisplay.classList.add('updated');
+                setTimeout(() => resultDisplay.classList.remove('updated'), 300);
+            }, 300);
+        }
+
+        // Function to copy text to clipboard
+        async function copyTextToClipboard(text) {
+            try {
+                const tempInput = document.createElement('textarea');
+                tempInput.value = text;
+                document.body.appendChild(tempInput);
+                tempInput.select();
+                document.execCommand('copy');
+                document.body.removeChild(tempInput);
+
+                messageText.textContent = translations[currentLanguage].copiedToClipboard;
+                messageArea.className = 'message';
+                setTimeout(() => messageText.textContent = '', 2000);
+            } catch (err) {
+                console.error('Failed to copy text: ', err);
+                messageText.textContent = translations[currentLanguage].copyFailed;
+                messageArea.className = 'message error shake';
+                setTimeout(() => messageArea.classList.remove('shake'), 500);
+            }
+        }
+
+        // PWA Service Worker Registration (Conceptual - requires separate file for production, removed due to environment constraints)
+        // function registerServiceWorker() {
+        //     if ('serviceWorker' in navigator) {
+        //         window.addEventListener('load', () => {
+        //             navigator.serviceWorker.register('/service-worker.js')
+        //                 .then(registration => {
+        //                     console.log('ServiceWorker registration successful with scope: ', registration.scope);
+        //                 })
+        //                 .catch(err => {
+        //                     console.log('ServiceWorker registration failed: ', err);
+        //                 });
+        //         });
+        //     }
+        // }
+        // Call PWA registration
+        // registerServiceWorker();
+
+
+        // Event Listeners
+        amountInput.addEventListener('input', convertCurrency);
+
+        fromCurrencySelect.addEventListener('change', () => {
+            updateFlags();
+            convertCurrency();
+            fetchAndRenderChart(); // Update chart on currency change
+            localStorage.setItem('fromCurrency', fromCurrencySelect.value); // Save selection
+        });
+        toCurrencySelect.addEventListener('change', () => {
+            updateFlags();
+            convertCurrency();
+            fetchAndRenderChart(); // Update chart on currency change
+            localStorage.setItem('toCurrency', toCurrencySelect.value); // Save selection
+        });
+
+        fromCurrencySearch.addEventListener('input', () => filterCurrencyOptions('fromCurrencySearch', fromCurrencySelect));
+        toCurrencySearch.addEventListener('input', () => filterCurrencyOptions('toCurrencySearch', toCurrencySelect));
+
+        historyDateInput.addEventListener('change', () => {
+            // Re-fetch historical data and render chart for the selected date range
+            fetchAndRenderChart(); // This function will use the date input to fetch historical data
+        });
+
+        // Language Toggle
+        langToggleButton.addEventListener('click', () => {
+            setLanguage(currentLanguage === 'ar' ? 'en' : 'ar');
+        });
+
+        // Dark Mode Toggle
+        darkModeToggle.addEventListener('click', () => {
+            document.body.classList.toggle('dark-mode');
+            const isDarkMode = document.body.classList.contains('dark-mode');
+            localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+            // Update chart colors instantly if dark mode changes
+            if (chartInstance) {
+                chartInstance.options.scales.x.ticks.color = isDarkMode ? '#ecf0f1' : '#334155';
+                chartInstance.options.scales.y.ticks.color = isDarkMode ? '#ecf0f1' : '#334155';
+                chartInstance.options.scales.y.grid.color = isDarkMode ? 'rgba(255,255,255,0.1)' : 'rgba(0,0,0,0.1)';
+                chartInstance.options.plugins.legend.labels.color = isDarkMode ? '#ecf0f1' : '#334155';
+                chartInstance.update();
+            }
+        });
+
+        // Swap Currencies Button
+        swapCurrenciesButton.addEventListener('click', () => {
+            const tempFrom = fromCurrencySelect.value;
+            fromCurrencySelect.value = toCurrencySelect.value;
+            toCurrencySelect.value = tempFrom;
+            updateFlags();
+            convertCurrency();
+            fetchAndRenderChart(); // Update chart after swapping
+        });
+
+        // Copy Button
+        copyButton.addEventListener('click', () => {
+            copyTextToClipboard(resultDisplay.textContent);
+        });
+
+        // Retry Button
+        retryButton.addEventListener('click', fetchExchangeRates);
+
+        // Feedback Button
+        feedbackButton.addEventListener('click', () => {
+            const subject = encodeURIComponent("Currency Converter App Feedback");
+            const body = encodeURIComponent(`App Version: 1.0\nLanguage: ${currentLanguage}\n\nPlease provide your feedback here:\n`);
+            window.location.href = `mailto:mazmhmd493@gmail.com?subject=${subject}&body=${body}`;
+        });
+
+        // API Key Modal Event Listeners
+        useDefaultKeyButton.addEventListener('click', () => {
+            currentApiKey = DEFAULT_API_KEY;
+            isUsingDefaultKey = true;
+            // Get defaultKeyUsesLeft from localStorage, if not present, set it to DEFAULT_API_KEY_LIMIT
+            const storedUses = localStorage.getItem('defaultApiKeyUses');
+            defaultKeyUsesLeft = storedUses !== null ? parseInt(storedUses, 10) : DEFAULT_API_KEY_LIMIT;
+
+            if (defaultKeyUsesLeft <= 0) {
+                showApiKeyModal(true, translations[currentLanguage].defaultKeyLimitReached);
+                return; // Prevent proceeding if limit is already reached
+            }
+
+            hideApiKeyModal();
+            updateApiKeyStatusDisplay();
+            fetchExchangeRates(); // Start fetching with default key
+        });
+
+        submitApiKeyButton.addEventListener('click', () => {
+            const userKey = userApiKeyInput.value.trim();
+            if (userKey) {
+                // Prevent user from entering the app's default key as their personal key
+                if (userKey === DEFAULT_API_KEY) {
+                    showApiKeyModal(true, translations[currentLanguage].defaultKeyEntered);
+                    return; // Stop here, do not proceed with this key
+                }
+
+                try {
+                    localStorage.setItem('userApiKey', userKey);
+                    currentApiKey = userKey;
+                    isUsingDefaultKey = false;
+                    localStorage.removeItem('defaultApiKeyUses'); // Clear default uses if user provides key
+                    hideApiKeyModal();
+                    updateApiKeyStatusDisplay();
+                    fetchExchangeRates(); // Start fetching with user's key
+                } catch (e) {
+                    console.error("Error saving API key to localStorage:", e);
+                    showApiKeyModal(true, translations[currentLanguage].apiKeySaveError);
+                }
+            } else {
+                showApiKeyModal(true, translations[currentLanguage].apiKeyRequired);
+            }
+        });
+
+        // Initial setup on page load
+        window.onload = () => {
+            // Set max date for historical input to today
+            const today = new Date().toISOString().split('T')[0];
+            historyDateInput.setAttribute('max', today);
+            historyDateInput.value = today; // Default to today's date
+
+            // Load theme from localStorage
+            if (localStorage.getItem('theme') === 'dark') {
+                document.body.classList.add('dark-mode');
+            }
+            setLanguage('en'); // Set default language to English
+
+            // API Key Logic on Load
+            const storedUserKey = localStorage.getItem('userApiKey');
+            const storedDefaultUses = localStorage.getItem('defaultApiKeyUses');
+
+            if (storedUserKey) {
+                currentApiKey = storedUserKey;
+                isUsingDefaultKey = false;
+                fetchExchangeRates(); // Fetch data immediately with user's key
+            } else if (storedDefaultUses !== null && parseInt(storedDefaultUses, 10) > 0) {
+                defaultKeyUsesLeft = parseInt(storedDefaultUses, 10);
+                currentApiKey = DEFAULT_API_KEY;
+                isUsingDefaultKey = true;
+                fetchExchangeRates(); // Fetch data immediately with default key
+            } else if (storedDefaultUses === null) {
+                // First-time load, set default uses and prompt
+                localStorage.setItem('defaultApiKeyUses', DEFAULT_API_KEY_LIMIT);
+                defaultKeyUsesLeft = DEFAULT_API_KEY_LIMIT;
+                showApiKeyModal(); // Show modal to prompt for API key
+            } else {
+                // StoredDefaultUses is 0 or less, meaning limit is reached
+                defaultKeyUsesLeft = 0;
+                showApiKeyModal(true, translations[currentLanguage].defaultKeyLimitReached);
+            }
+            updateApiKeyStatusDisplay(); // Initial status display
+        };
+    </script>
+</body>
+
+</html>
